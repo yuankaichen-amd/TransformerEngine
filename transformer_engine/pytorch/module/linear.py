@@ -575,22 +575,10 @@ class _Linear(torch.autograd.Function):
                         clear_tensor_data(inputmat_total)
                         clear_tensor_data(inputmat_t_total)
 
-<<<<<<< ours
-                # Deallocate input tensor
-                clear_tensor_data(inputmat_total)
-                clear_tensor_data(inputmat_t_total)
 
             # Column Parallel Linear
             if ctx.parallel_mode == "column" and ctx.tensor_parallel and handle is not None:
                 handle.wait()
-=======
-                if ctx.ub_bulk_wgrad:
-                    dgrad = ub_obj_wgrad.get_ubuf_output(0)
-
-            # Wait for dgrad reduce-scatter or all-reduce
-            if dgrad_reduce_handle is not None:
-                dgrad_reduce_handle.wait()
->>>>>>> theirs
 
             if not ctx.use_bias or ctx.wgrad_store.split_bw():
                 grad_bias = None
@@ -785,49 +773,6 @@ class Linear(TransformerEngineBaseModule):
 
         self.sequence_parallel = (self.tp_size > 1) and sequence_parallel
 
-<<<<<<< ours
-=======
-        # Column parallel TP overlap options
-        self.ub_overlap_ag_fprop = parallel_mode == "column" and sequence_parallel and ub_overlap_ag
-        self.ub_overlap_rs_dgrad = parallel_mode == "column" and sequence_parallel and ub_overlap_rs
-        self.ub_bulk_dgrad = parallel_mode == "column" and sequence_parallel and ub_bulk_dgrad
-        self.ub_bulk_wgrad = parallel_mode == "column" and sequence_parallel and ub_bulk_wgrad
-        if self.ub_overlap_rs_dgrad:
-            self.ub_bulk_dgrad = False
-            self.ub_bulk_wgrad = False
-
-        # Row parallel TP overlap options
-        self.ub_overlap_rs_fprop = parallel_mode == "row" and sequence_parallel and ub_overlap_rs
-        self.ub_overlap_ag_dgrad = parallel_mode == "row" and sequence_parallel and ub_overlap_ag
-
-        if any(
-            [
-                self.ub_overlap_rs_fprop,
-                self.ub_overlap_ag_dgrad,
-                self.ub_overlap_ag_fprop,
-                self.ub_overlap_rs_dgrad,
-                self.ub_bulk_dgrad,
-                self.ub_bulk_wgrad,
-            ]
-        ):
-            assert ub_name is not None, f"Comm+GEMM overlap layer '{ub_name}' is not initialized."
-        self.ub_name = ub_name
-
-        assert not (
-            self.ub_overlap_rs_fprop and self.ub_overlap_ag_fprop
-        ), "Cannot enable AG+GEMM and GEMM+RS overlaps at the same time."
-        assert not (
-            self.ub_overlap_rs_dgrad and self.ub_bulk_dgrad
-        ), "Cannot enable DGRAD+RS and bulk DGRAD overlaps at the same time."
-        assert not (
-            self.ub_overlap_ag_dgrad and (self.ub_overlap_rs_dgrad or self.ub_bulk_dgrad)
-        ), "Cannot enable AG+DGRAD and DGRAD+RS or bulk DGRAD overlaps at the same time."
-
-        self.get_rng_state_tracker = get_rng_state_tracker
-        self.rng_tracker_name = rng_tracker_name
-        self.wgrad_store = WeightGradStore(split_bw, ub_bulk_wgrad)
-
->>>>>>> theirs
         # Initialize params in FP8
         with_fp8_params = FP8GlobalStateManager.with_fp8_parameters()
 
