@@ -1,5 +1,5 @@
 # This file was modified for portability to AMDGPU
-# Copyright (c) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2024, Advanced Micro Devices, Inc. All rights reserved.
 # Copyright (c) 2022-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # See LICENSE for license information.
@@ -8,7 +8,6 @@
 
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 from dataclasses import dataclass
-import os
 
 import torch
 import queue
@@ -17,7 +16,7 @@ from .. import cpp_extensions as tex
 from ..export import is_in_onnx_export_mode
 from ..fp8 import get_fp8_te_dtype
 from ..utils import get_default_init_method
-from ..triton_kernels.rmsnorm_triton import te_rmsnorm_fwd_noalloc_triton, te_rmsnorm_fwd_inf_triton
+
 
 def _get_normalization_func(
     normalization: str, fp8_output: bool, is_grad_enabled: bool, forward: bool
@@ -100,25 +99,14 @@ def _apply_normalization(
                 None,
             )
     else:
-        use_rmsnorm_triton = bool( int(os.environ.get('NVTE_USE_RMSNORM_TRITON', '0')) )
         if is_grad_enabled:
-            if use_rmsnorm_triton and normalization == "RMSNorm":
-                output = te_rmsnorm_fwd_noalloc_triton(*inputs, ln_out, eps, zero_centered_gamma)
-            else:
-                output = normalization_func(*inputs, ln_out, eps, fwd_ln_sm_margin, zero_centered_gamma)
+            output = normalization_func(*inputs, ln_out, eps, fwd_ln_sm_margin, zero_centered_gamma)
         else:
-            if use_rmsnorm_triton and normalization == "RMSNorm":
-                return (
-                    te_rmsnorm_fwd_inf_triton(*inputs, eps, zero_centered_gamma),
-                    None,
-                    None,
-                )
-            else:
-                return (
-                    normalization_func(*inputs, eps, fwd_ln_sm_margin, zero_centered_gamma),
-                    None,
-                    None,
-                )
+            return (
+                normalization_func(*inputs, eps, fwd_ln_sm_margin, zero_centered_gamma),
+                None,
+                None,
+            )
     if normalization == "RMSNorm":
         output = (ln_out, None, output[1])
     elif normalization == "LayerNorm":
@@ -258,6 +246,7 @@ class _ParameterInitMeta:
         """Safeguard reference to the parameter's parent module and initialization function."""
         if self.init_fn is None:
             self.init_fn = get_default_init_method()
+
 
 
 class WeightGradStore:

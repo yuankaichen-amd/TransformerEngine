@@ -583,6 +583,7 @@ class _Linear(torch.autograd.Function):
             if not ctx.use_bias or ctx.wgrad_store.split_bw():
                 grad_bias = None
 
+        wgrad = None
         if weight.requires_grad:
             # Handle custom DDP from mcore.
             if ctx.fuse_wgrad_accumulation and hasattr(weight, "grad_added_to_main_grad"):
@@ -749,6 +750,7 @@ class Linear(TransformerEngineBaseModule):
         self.ub_name = ub_name
         self.get_rng_state_tracker = get_rng_state_tracker
         self.rng_tracker_name = rng_tracker_name
+        self.wgrad_store = WeightGradStore(split_bw)
 
         if device == "meta":
             assert parameters_split is None, "Cannot split module parameters on 'meta' device."
@@ -1043,7 +1045,7 @@ class Linear(TransformerEngineBaseModule):
         if not self.wgrad_store.split_bw():
             return
         with torch.cuda.nvtx.range("_Linear_wgrad"):
-            (wgrad, grad_bias_, _, _), _ = self.wgrad_store.pop()
+            (wgrad, grad_bias_, _), _ = self.wgrad_store.pop()
             if not self.fuse_wgrad_accumulation:
                 unfused_weights = [getattr(self, name) for name in self.weight_names]
                 weight_tensor = _noop_cat(unfused_weights)
